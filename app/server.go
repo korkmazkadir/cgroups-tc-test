@@ -1,0 +1,75 @@
+package app
+
+import (
+	"fmt"
+	"log"
+	"sync"
+)
+
+// Server implements a TCP file server.
+type Server struct {
+	// protects following fields
+	rwLock sync.RWMutex
+
+	availableFileMap map[string]File
+}
+
+var (
+	// ErrFileNotAvailable is raised if the file is not registered in the available file list
+	ErrFileNotAvailable = fmt.Errorf("file is not available")
+	// ErrInvalidFileName is raised if the file name is not valid one
+	ErrInvalidFileName = fmt.Errorf("file name is invalid")
+	// ErrFileAlreadyRegistered is raised when an already used name is used to register a file
+	ErrFileAlreadyRegistered = fmt.Errorf("file already registered")
+)
+
+// NewServer creates a new server and returns it
+func NewServer() *Server {
+	server := new(Server)
+	server.availableFileMap = make(map[string]File)
+	return server
+}
+
+// GetFile call accepts file name as a parameter and returns the file
+func (s *Server) GetFile(fileName string, file *File) error {
+
+	if fileName == "" {
+		return ErrInvalidFileName
+	}
+
+	s.rwLock.RLock()
+	localFile, ok := s.availableFileMap[fileName]
+	s.rwLock.RUnlock()
+
+	if ok == false {
+		return ErrFileNotAvailable
+	}
+
+	file.Data = localFile.Data
+	log.Printf("[GET] Name %s Size %d Hash: %s\n", fileName, len(file.Data), file.Hash())
+
+	return nil
+}
+
+// PutFile puts a file with a specific name
+func (s *Server) PutFile(file File, reply *int) error {
+
+	if file.Name == "" {
+		return ErrInvalidFileName
+	}
+
+	s.rwLock.Lock()
+	defer s.rwLock.Unlock()
+
+	_, ok := s.availableFileMap[file.Name]
+
+	if ok {
+		return ErrFileAlreadyRegistered
+	}
+
+	s.availableFileMap[file.Name] = file
+
+	log.Printf("[PUT] Name %s Size %d Hash: %s\n", file.Name, len(file.Data), file.Hash())
+
+	return nil
+}
