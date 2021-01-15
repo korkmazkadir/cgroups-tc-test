@@ -53,6 +53,9 @@ sudo tc filter add dev $nic parent 1: handle 1: cgroup
 
 # tc -s -d class show dev lo
 
+#kills previous server
+pidof server-app | xargs kill -9
+
 for (( i=1; i<=$number_of_nodes; i++ ))
 do  
 
