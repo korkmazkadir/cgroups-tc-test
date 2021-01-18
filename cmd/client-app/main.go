@@ -17,12 +17,17 @@ const fileName = "Test-1MB"
 func main() {
 
 	argsWithoutProg := os.Args[1:]
-	if len(argsWithoutProg) != 2 {
-		panic(fmt.Errorf("you should provide an IP Address and a port number as arguments"))
+	if len(argsWithoutProg) != 3 {
+		panic(fmt.Errorf("you should provide an [IP Address] [base port number] [number of servers] as arguments"))
 	}
 
 	ipAddress := argsWithoutProg[0]
-	portNumber, err := strconv.Atoi(argsWithoutProg[1])
+	basePortNumber, err := strconv.Atoi(argsWithoutProg[1])
+	if err != nil {
+		panic(err)
+	}
+
+	numberOfServers, err := strconv.Atoi(argsWithoutProg[2])
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +38,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 
-			client, err := app.NewClient(ipAddress, portNumber)
+			client, err := app.NewClient(ipAddress, getRandomPortNumber(basePortNumber, numberOfServers))
 			if err != nil {
 				panic(err)
 			}
@@ -43,28 +48,33 @@ func main() {
 		}()
 	}
 
-	/*
+	wg.Wait()
 
-		for i := 0; i < 10; i++ {
-			wg.Add(1)
-			go func() {
+	wg = sync.WaitGroup{}
 
-				client, err := app.NewClient(ipAddress, portNumber)
-				if err != nil {
-					panic(err)
-				}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
 
-				file := createRandomFile(1000500)
-				putRandomFile(client, file)
+			client, err := app.NewClient(ipAddress, getRandomPortNumber(basePortNumber, numberOfServers))
+			if err != nil {
+				panic(err)
+			}
 
-				wg.Done()
-			}()
-		}
+			file := createRandomFile(1000500)
+			putRandomFile(client, file)
 
-	*/
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 
+}
+
+func getRandomPortNumber(basePortNumber int, numberOfServers int) int {
+	rand.Seed(time.Now().UnixNano())
+	return basePortNumber + rand.Intn(numberOfServers)
 }
 
 func getFileFromServer(client *app.Client) {
@@ -79,7 +89,7 @@ func getFileFromServer(client *app.Client) {
 		panic(err)
 	}
 
-	log.Printf("[GET]\t%d\t%d\t%s\n", time.Since(start).Milliseconds(), len(file.Data), file.Hash())
+	log.Printf("[%s]\t[GET]\t%d\t%d\t%s\n", client.NetAddress(), time.Since(start).Milliseconds(), len(file.Data), file.Hash())
 
 }
 
@@ -91,7 +101,7 @@ func putRandomFile(client *app.Client, file *app.File) {
 		panic(err)
 	}
 
-	log.Printf("[PUT]\t%d\t%d\t%s\n", time.Since(start).Milliseconds(), len(file.Data), file.Hash())
+	log.Printf("[%s]\t[PUT]\t%d\t%d\t%s\n", client.NetAddress(), time.Since(start).Milliseconds(), len(file.Data), file.Hash())
 }
 
 func createRandomFile(fileSize int) *app.File {

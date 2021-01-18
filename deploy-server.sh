@@ -1,6 +1,6 @@
 #!/bin/bash
 
-read -p "Port number: " port_number
+read -p "Base port number: " base_port_number
 read -p "Number of nodes: " number_of_nodes
 
 function throttle()
@@ -40,7 +40,7 @@ sudo cgdelete -r net_cls:/
 
 #Defines network interface to apply tc rules
 #nic="eno1"
-nic="lo"
+nic="eno1"
 
 #Delete previous tc rules
 sudo tc qdisc del dev $nic root
@@ -54,14 +54,21 @@ sudo tc filter add dev $nic parent 1: handle 1: cgroup
 # tc -s -d class show dev lo
 
 #kills previous server
-pidof server-app | xargs kill -9
+sudo killall -r server-app
+rm server.log
+touch server.log
 
 for (( i=1; i<=$number_of_nodes; i++ ))
-do  
+do 
 
-   ./server-app "${port_number}" 2> "server.log" &
+   port_number=$((base_port_number + i - 1))
+   ./server-app "${port_number}" 2>> "server.log" &
    algorand_pid=$!
 
    throttle $i $algorand_pid
 
+   echo $port_number
+
 done
+
+tail -100f server.log

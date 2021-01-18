@@ -52,6 +52,11 @@ func (c *Client) PutFile(file *File) error {
 	return nil
 }
 
+// NetAddress returns ipaddress and portnumber string
+func (c *Client) NetAddress() string {
+	return c.netAddress
+}
+
 // Close closes the connection to the server
 func (c *Client) Close() error {
 	return c.rpcClient.Close()

@@ -3,11 +3,14 @@ package app
 import (
 	"fmt"
 	"log"
+	"os"
 	"sync"
 )
 
 // Server implements a TCP file server.
 type Server struct {
+	pid int
+
 	// protects following fields
 	rwLock sync.RWMutex
 
@@ -26,6 +29,7 @@ var (
 // NewServer creates a new server and returns it
 func NewServer() *Server {
 	server := new(Server)
+	server.pid = os.Getpid()
 	server.availableFileMap = make(map[string]File)
 	return server
 }
@@ -46,7 +50,7 @@ func (s *Server) GetFile(fileName string, file *File) error {
 	}
 
 	file.Data = localFile.Data
-	log.Printf("[GET] Name %s Size %d Hash: %s\n", fileName, len(file.Data), file.Hash())
+	log.Printf("[%d]\t[GET] Name %s Size %d Hash: %s\n", s.pid, fileName, len(file.Data), file.Hash())
 
 	return nil
 }
@@ -69,7 +73,7 @@ func (s *Server) PutFile(file File, reply *int) error {
 
 	s.availableFileMap[file.Name] = file
 
-	log.Printf("[PUT] Name %s Size %d Hash: %s\n", file.Name, len(file.Data), file.Hash())
+	log.Printf("[%d]\t[PUT] Name %s Size %d Hash: %s\n", s.pid, file.Name, len(file.Data), file.Hash())
 
 	return nil
 }
